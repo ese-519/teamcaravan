@@ -10,10 +10,11 @@ HMotor motor_left(MOTOR_LEFT);
 int received = 0;
 
 #define MOTOR_SERIAL Serial3
+#define RPI_SERIAL Serial2
 
 void setup() {
   Serial.begin(115200);
-  MOTOR_SERIAL.begin(115200);
+  RPI_SERIAL.begin(115200);
   
   motor_left.initMotor();
   motor_left.setBrake();
