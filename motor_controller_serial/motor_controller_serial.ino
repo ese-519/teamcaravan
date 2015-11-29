@@ -9,12 +9,13 @@ HMotor motor_left(MOTOR_LEFT);
 
 int received = 0;
 
+long last_packet;
+
 #define MOTOR_SERIAL Serial3
-#define RPI_SERIAL Serial2
 
 void setup() {
   Serial.begin(115200);
-  RPI_SERIAL.begin(115200);
+  MOTOR_SERIAL.begin(115200);
   
   motor_left.initMotor();
   motor_left.setBrake();
@@ -31,6 +32,17 @@ void loop() {
   motor_left.updateMotor();
   motor_right.updateMotor();
   
+//  vel = 0;
+//  vel += ((int)22 % 23);
+//  vel += (float)((int)1 % 100)/100;
+//  
+//  motor_right.setDirection(MOTOR_FWD); 
+//  motor_left.setDirection(MOTOR_BWD); 
+//  
+//  motor_right.setVelocity(vel);
+//  motor_left.setVelocity(vel);
+  
+ 
   if(MOTOR_SERIAL.available() >= PACKET_SIZE) {
 //    Serial.println(MOTOR_SERIAL.available());
 //    Serial.println(PACKET_SIZE);
@@ -38,8 +50,9 @@ void loop() {
     if(read_in_packet(buf)) {
       Serial.print("Reading\r");
       acceptCommands();
+      last_packet = millis();
     }
-    else {
+    else if (millis() - last_packet > 250) {
       Serial.print("Braking\r");
       motor_left.setBrake();
       motor_right.setBrake();
@@ -48,6 +61,12 @@ void loop() {
 }
 
 void acceptCommands() {
+  
+   for (int i = 0; i < PACKET_SIZE; i++) {
+      Serial.print(buf[i]); 
+   }
+   Serial.println();
+  
    if(buf[1] == 0) {
      motor_left.setBrake();
      motor_right.setBrake();
