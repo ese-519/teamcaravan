@@ -3,6 +3,10 @@
 #include <SerialMessage.h>
 #include <Lidar.h>
 
+int turnLength = 400;
+bool isCenter = true;
+bool isLeft = false;
+bool isRight = false;
 unsigned long lastTurn = 0;
 unsigned long turnTimeout = 1000;
 unsigned long lastMovePacket = 0;
@@ -24,7 +28,7 @@ unsigned char vel_buf[PACKET_SIZE];
 
 // in mm
 int hazardRange = 609;
-int wallDiff = 609;
+int wallDiff = 304;
 
 int turnSpeed = 4;
 bool isStopped = true;
@@ -64,7 +68,7 @@ int scanFront() {
       }
   }
   
-  if (low == high == middle) {
+  if (low == high && high == middle) {
     // nothing found
     if (distance(middle) == 0 || distance(middle) >= hazardRange) {
       return 0;
@@ -96,7 +100,7 @@ void brake() {
   Serial.println("Brake");
   isStopped = true;
   make_packet_vels(vel_buf, 0.0, 0.0);
-  vel_buf[1] = i_to_c(0);
+  vel_buf[1] = 0;
   send_packet_serial(vel_buf);
 }
 
@@ -104,9 +108,10 @@ void loop() {
   
   loop_lidar();
 
-//  if (millis() - lastMovePacket > moveTimeout) {
+  if (millis() - lastMovePacket > moveTimeout) {
 //     brake(); 
-//  }
+      drive(4.0);
+  }
   
   if (RPI_SERIAL.available() >= PACKET_SIZE) {
 //     while (RPI_SERIAL.available()) {
@@ -130,12 +135,30 @@ void loop() {
             // Check right
             float rightWall = distanceInRange(R_START, R_END);
             
-            if (leftWall - rightWall > wallDiff) {
-              //left wall far away -- turn left (CW) 
+            if (leftWall - rightWall > wallDiff && (isCenter || isRight)) {
+              //left wall far away -- turn left (CW)
+              isCenter = false;
+              isLeft = true;
+              isRight = false;
+              brake();
+              delay(turnLength);
               turn(turnSpeed);
-            } else if (rightWall - leftWall > wallDiff) {
+              delay(turnLength);
+              brake();
+            } else if (rightWall - leftWall > wallDiff && (isCenter || isLeft)) {
               //right wall far away -- turn right (CCW) 
+              isCenter = false;
+              isRight = true;
+              isLeft = false;
+              brake();
+              delay(turnLength);
               turn(-turnSpeed);
+              delay(turnLength);
+              brake();
+            } else {
+               isCenter = true; 
+               isLeft = false;
+               isRight = false;
             }
           }
           

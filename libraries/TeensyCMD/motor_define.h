@@ -46,7 +46,7 @@
 #define MOTOR_RIGHT 2
 
 #define MOTOR_FWD   1
-#define MOTOR_BWD   2
+#define MOTOR_BWD   5
 #define MOTOR_BRK   0
 
 /* Control loop settings */

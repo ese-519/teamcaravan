@@ -16,6 +16,7 @@ unsigned char i_to_c(int i) {
 }
 
 char* i_to_s(int i) {
+	return '\0';
 	// char buf [4];
 	// sprintf (buf, "%03i", i);
 	// return buf;

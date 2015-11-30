@@ -8,7 +8,12 @@
 #define INFO_MSG 4
 #define DEBUG_MSG 5
 #define TURN_MSG 6
-#define VEL_MSG 7
+#define FWD_MSG 7
+#define BWD_MSG 8
+#define BRK_MSG 9
+
+#define DIR_LEFT 1
+#define DIR_RIGHT 2
 
 #define RPI_SERIAL Serial2
 

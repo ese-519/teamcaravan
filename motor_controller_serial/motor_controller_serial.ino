@@ -31,15 +31,14 @@ long time;
 void loop() {
   motor_left.updateMotor();
   motor_right.updateMotor();
-  
-  if (Serial.available()) {
-     MOTOR_SERIAL.print(Serial.peek());
-     Serial.print(Serial.read());
-  }
-  
-  if (MOTOR_SERIAL.available()) {
-     Serial.print(MOTOR_SERIAL.read());
-  }
+//  
+//  if (Serial.available()) {
+//     MOTOR_SERIAL.print(Serial.peek());
+//     Serial.print(Serial.read());
+//  }
+//  if (MOTOR_SERIAL.available()) {
+//     Serial.print(MOTOR_SERIAL.read());
+//  }
   
 //  while (MOTOR_SERIAL.available()) {
 //     Serial.println(MOTOR_SERIAL.read()); 
@@ -56,30 +55,30 @@ void loop() {
 //  motor_right.setVelocity(vel);
 //  motor_left.setVelocity(vel);
   
- /*
+ 
   if(MOTOR_SERIAL.available() >= PACKET_SIZE) {
 //    Serial.println(MOTOR_SERIAL.available());
 //    Serial.println(PACKET_SIZE);
 //    Serial.println(MOTOR_SERIAL.read());
     if(read_in_packet(buf)) {
-      Serial.print("Reading\r");
+//      Serial.print("Reading\r");
       acceptCommands();
       last_packet = millis();
-    }
-    else if (millis() - last_packet > 250) {
-      Serial.print("Braking\r");
-      motor_left.setBrake();
-      motor_right.setBrake();
-    }
+    } 
   }
-  
-  */
+    
+  if (millis() - last_packet > 250) {
+//    Serial.print("Braking\r");
+    motor_left.setBrake();
+    motor_right.setBrake();
+  }
 }
 
 void acceptCommands() {
   
    for (int i = 0; i < PACKET_SIZE; i++) {
-      Serial.print(buf[i]); 
+      Serial.print(buf[i]);
+      Serial.print(" "); 
    }
    Serial.println();
   
@@ -112,7 +111,7 @@ void acceptCommands() {
         vel += (float)((int)buf[6] % 100)/100; 
       //  Serial.println(vel);
         motor_right.setVelocity(vel);
-        Serial.println();
+//        Serial.println();
         /*Serial.println(vel);*/
        /* motor_left.updateMotor();
         motor_right.updateMotor();*/

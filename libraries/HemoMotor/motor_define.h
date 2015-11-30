@@ -32,11 +32,11 @@
 #define PWM_MAX   255
 
 /* Motor driver constants */
-#define CW_IN_A   HIGH
-#define CW_IN_B   LOW
+#define CW_IN_A   LOW//HIGH
+#define CW_IN_B   HIGH//LOW
 
-#define CCW_IN_A  LOW
-#define CCW_IN_B  HIGH
+#define CCW_IN_A  HIGH//LOW
+#define CCW_IN_B  LOW//HIGH
 
 #define BRK_IN_A  HIGH
 #define BRK_IN_B  HIGH
@@ -46,7 +46,7 @@
 #define MOTOR_RIGHT 2
 
 #define MOTOR_FWD   1
-#define MOTOR_BWD   2
+#define MOTOR_BWD   5
 #define MOTOR_BRK   0
 
 /* Control loop settings */
