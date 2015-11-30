@@ -32,6 +32,20 @@ void loop() {
   motor_left.updateMotor();
   motor_right.updateMotor();
   
+  if (Serial.available()) {
+     MOTOR_SERIAL.print(Serial.peek());
+     Serial.print(Serial.read());
+  }
+  
+  if (MOTOR_SERIAL.available()) {
+     Serial.print(MOTOR_SERIAL.read());
+  }
+  
+//  while (MOTOR_SERIAL.available()) {
+//     Serial.println(MOTOR_SERIAL.read()); 
+//  }
+//  Serial.println("");
+  
 //  vel = 0;
 //  vel += ((int)22 % 23);
 //  vel += (float)((int)1 % 100)/100;
@@ -42,7 +56,7 @@ void loop() {
 //  motor_right.setVelocity(vel);
 //  motor_left.setVelocity(vel);
   
- 
+ /*
   if(MOTOR_SERIAL.available() >= PACKET_SIZE) {
 //    Serial.println(MOTOR_SERIAL.available());
 //    Serial.println(PACKET_SIZE);
@@ -58,6 +72,8 @@ void loop() {
       motor_right.setBrake();
     }
   }
+  
+  */
 }
 
 void acceptCommands() {
