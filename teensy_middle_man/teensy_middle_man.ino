@@ -67,8 +67,6 @@ void loop() {
 //  }
 }
 
-
-
 void processPacket() {
   int msg_type = c_to_i(msg_buf[1]);
   switch (msg_type) {
