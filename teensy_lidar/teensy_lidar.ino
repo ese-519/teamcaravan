@@ -2,8 +2,11 @@
 
 #define LIDAR_SERIAL Serial1
 
+int scans_received = 0;
+
+int deg = 0;
+
 void setup() {
-  // put your setup code here, to run once:
   Serial.begin(115200);
   LIDAR_SERIAL.begin(115200);
 
@@ -14,12 +17,21 @@ void setup() {
 void loop() {
   loop_lidar();
 
-  lidar_dist d = get_degree(0);
+  lidar_dist d = get_degree(deg++);
+  if (deg > 350) { deg = 0; }
   
 //  Serial.println(d);
-  Serial.println(d.degree);
-  Serial.println(d.dist);
-  Serial.println(d.dist_x);
+  Serial.print (d.degree);
+  Serial.print(" ");
+  Serial.print(d.dist);
+    Serial.print(" ");
+  Serial.print(d.dist_x);
+    Serial.print(" ");
   Serial.println(d.dist_y);
 
+  if(flag_scan_complete) {  
+    scans_received++;    
+    while(Serial1.available() > 100) Serial1.read();
+    reset_scan_buf();
+  }
 }
