@@ -3,6 +3,9 @@
 #include <SerialMessage.h>
 #include <Lidar.h>
 
+bool checkObstacles = true;
+bool checkHallway = true;
+
 int turnLength = 400;
 bool isCenter = true;
 bool isLeft = false;
@@ -27,11 +30,16 @@ unsigned char vel_buf[PACKET_SIZE];
 #define R_END 101
 
 // in mm
-int hazardRange = 609;
-int wallDiff = 304;
+int hazardRange = 609; // 2FT
+int wallDiff = 304; // 1FT
+int wallIgnoreRange = 3048; //10FT
 
 int turnSpeed = 4;
 bool isStopped = true;
+
+int ftToMm(float ft) {
+   return (int)ft * 304.8; 
+}
 
 int distance(int deg) {
    lidar_dist d = get_degree(deg%360);
@@ -97,11 +105,22 @@ void setup() {
 }
 
 void brake() {
-  Serial.println("Brake");
+//  Serial.println("Brake");
   isStopped = true;
   make_packet_vels(vel_buf, 0.0, 0.0);
   vel_buf[1] = 0;
   send_packet_serial(vel_buf);
+}
+
+void print(const char *c) {
+  Serial.print(c);
+  print_debug(c);
+}
+
+void println(const char *c) {
+  Serial.println(c);
+  print_debug(c);
+  print_debug('\n'); 
 }
 
 void loop() {
@@ -109,8 +128,8 @@ void loop() {
   loop_lidar();
 
   if (millis() - lastMovePacket > moveTimeout) {
-//     brake(); 
-      drive(4.0);
+     brake(); 
+//      drive(4.0);
   }
   
   if (RPI_SERIAL.available() >= PACKET_SIZE) {
@@ -123,9 +142,11 @@ void loop() {
       if (checkBrake()) {
          Serial.println("Braked"); 
       } else { 
+        checkInfo();
+        
         // Check front
         int frontObject = scanFront();
-        if (frontObject == 0) { 
+        if (frontObject == 0 || !checkObstacles) { 
 //          Serial.println("No obstacles");   
 
           // Don't worry about hallway centering if Pi wants us to turn
@@ -135,8 +156,9 @@ void loop() {
             // Check right
             float rightWall = distanceInRange(R_START, R_END);
             
-            if (leftWall - rightWall > wallDiff && (isCenter || isRight)) {
+            if (checkHallway && leftWall - rightWall > wallDiff && leftWall < wallIgnoreRange && (isCenter || isRight)) {
               //left wall far away -- turn left (CW)
+              println("Left wall far");
               isCenter = false;
               isLeft = true;
               isRight = false;
@@ -145,8 +167,9 @@ void loop() {
               turn(turnSpeed);
               delay(turnLength);
               brake();
-            } else if (rightWall - leftWall > wallDiff && (isCenter || isLeft)) {
+            } else if (checkHallway && rightWall - leftWall > wallDiff && rightWall < wallIgnoreRange && (isCenter || isLeft)) {
               //right wall far away -- turn right (CCW) 
+              println("Right wall far");
               isCenter = false;
               isRight = true;
               isLeft = false;
@@ -166,6 +189,7 @@ void loop() {
           processPacket();
           
         } else {
+          println("Obstacle");
           turn(turnSpeed * frontObject);
 //          Serial.print("Oobstacles at ");   
 //          Serial.println(frontObject);
@@ -216,9 +240,9 @@ float getVel(int off) {
 
 void drive(float vel) {
   if (vel > 0) {
-    Serial.print("Forward: ");
+    println("Forward: ");
   } else {
-    Serial.print("Backward: ");
+    println("Backward: ");
   }
   Serial.println(vel);
   make_packet_vels(vel_buf, vel, vel);
@@ -227,12 +251,12 @@ void drive(float vel) {
 
 void turn(float vel) {
   if (vel > 0) {
-     Serial.print("Turning left: ");
+     println("Turning left: ");
      Serial.println(vel);
      make_packet_vels(vel_buf, -vel, vel);
      send_packet_serial(vel_buf);
    } else {
-     Serial.print("Turning right: ");
+     println("Turning right: ");
      Serial.println(vel);
      make_packet_vels(vel_buf, vel, -vel);
      send_packet_serial(vel_buf);
@@ -256,10 +280,16 @@ bool checkTurn() {
   return false;
 }
 
+void checkInfo() {
+   if (msg_buf[1] == INFO_MSG) {
+      processPacket();
+   } 
+}
+
 void processPacket() {  
-//  for (int i = 0; i < PACKET_SIZE; i++) {
-//     Serial.println(msg_buf[i]);
-//  } 
+  for (int i = 0; i < PACKET_SIZE; i++) {
+     Serial.println(msg_buf[i]);
+  } 
 
   int msg_type = msg_buf[1];
   float vel;
@@ -284,6 +314,36 @@ void processPacket() {
        break;
      case BRK_MSG:
        brake();
+       break;
+     case INFO_MSG:
+       vel = getVel(1);
+       Serial.println("INFO");
+       Serial.println(vel);
+       int info_type = msg_buf[2];
+       switch (info_type) {
+          case INFO_OBS:
+            checkObstacles = !checkObstacles;
+            if (checkObstacles) {
+              println("Obs True"); 
+            } else {
+              println("Obs False"); 
+            }
+            break;
+          case INFO_HLWY:
+            checkHallway = !checkHallway;
+            if (checkHallway) {
+              println("Hallway True"); 
+            } else {
+              println("Hallway False"); 
+            }
+            break;
+          case INFO_HAZ_RNG:
+            hazardRange = ftToMm(vel);
+            break;
+          case INFO_WALL_RNG:
+            wallDiff = ftToMm(vel);
+            break;
+       }
        break;
   }
 }

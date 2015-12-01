@@ -12,6 +12,11 @@
 #define BWD_MSG 8
 #define BRK_MSG 9
 
+#define INFO_OBS 5
+#define INFO_HLWY 6
+#define INFO_HAZ_RNG 7
+#define INFO_WALL_RNG 8
+
 #define DIR_LEFT 1
 #define DIR_RIGHT 2
 
