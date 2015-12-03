@@ -123,9 +123,15 @@ void println(const char *c) {
   print_debug('\n'); 
 }
 
-void loop() {
-  
+void sendAck() {
+   RPI_SERIAL.print(ACK_MSG);
+}
+
+void loop() {  
   loop_lidar();
+  
+  sendAck();
+  delay(100);
 
   if (millis() - lastMovePacket > moveTimeout) {
      brake(); 
@@ -287,9 +293,9 @@ void checkInfo() {
 }
 
 void processPacket() {  
-  for (int i = 0; i < PACKET_SIZE; i++) {
-     Serial.println(msg_buf[i]);
-  } 
+//  for (int i = 0; i < PACKET_SIZE; i++) {
+//     Serial.println(msg_buf[i]);
+//  } 
 
   int msg_type = msg_buf[1];
   float vel;
@@ -297,7 +303,7 @@ void processPacket() {
   switch (msg_type) {
      case TURN_MSG:
        vel = getVel(1);
-       dir = c_to_i(msg_buf[2]);
+       dir = msg_buf[2];
        if (dir == DIR_LEFT) {
          turn(vel);
        } else if (dir == DIR_RIGHT) {

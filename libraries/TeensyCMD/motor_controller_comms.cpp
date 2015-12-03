@@ -6,6 +6,10 @@
 #define SERIAL_PORT Serial3
 #define SERIAL_PORT_2 Serial2
 
+int c_to_i(int i) {
+   return i - '0';
+}
+
 /* Basic read, checks for proper start byte */
 int read_in_packet(unsigned char *buf) {
   int success = 0;
@@ -13,13 +17,13 @@ int read_in_packet(unsigned char *buf) {
   uint8_t c;
 
   /* Find beginning of packet */
-  while( SERIAL_PORT.available() && (c = SERIAL_PORT.read()) != PACKET_START) {
+  while( SERIAL_PORT.available() && (c = c_to_i(SERIAL_PORT.read())) != PACKET_START) {
     /*Serial.print(c);*/  }
   buf[0] = PACKET_START;
   bytes_read++;
 
   /* Read rest of packet */
-  while( ((c = SERIAL_PORT.read()) != -1) && bytes_read < PACKET_SIZE) {
+  while( ((c = c_to_i(SERIAL_PORT.read())) != -1) && bytes_read < PACKET_SIZE) {
     buf[bytes_read] = c;
     bytes_read++;
   }
@@ -39,13 +43,13 @@ int read_in_packet_2(unsigned char *buf) {
   uint8_t c;
 
   /* Find beginning of packet */
-  while( SERIAL_PORT_2.available() && (c = SERIAL_PORT_2.read()) != PACKET_START) {
+  while( SERIAL_PORT_2.available() && (c = c_to_i(SERIAL_PORT_2.read())) != PACKET_START) {
     /*Serial.print(c);*/  }
   buf[0] = PACKET_START;
   bytes_read++;
 
   /* Read rest of packet */
-  while( ((c = SERIAL_PORT_2.read()) != -1) && bytes_read < PACKET_SIZE) {
+  while( ((c = c_to_i(SERIAL_PORT_2.read())) != -1) && bytes_read < PACKET_SIZE) {
     buf[bytes_read] = c;
     bytes_read++;
   }

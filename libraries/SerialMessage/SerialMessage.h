@@ -6,7 +6,7 @@
 #define PACKET_END 3     // ETX
 
 #define INFO_MSG 4
-#define DEBUG_MSG 5
+#define ACK_MSG 0x05
 #define TURN_MSG 6
 #define FWD_MSG 7
 #define BWD_MSG 8
@@ -39,5 +39,7 @@ void print_debug(const char *msg);
 void print_debug(char c);
 
 void send_to_pi(unsigned char *buf);
+
+void sendAcknowledge(unsigned char *buf);
 
 #endif

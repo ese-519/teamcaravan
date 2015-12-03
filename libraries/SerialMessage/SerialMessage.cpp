@@ -82,3 +82,21 @@ void print_debug(const char *msg) {
 void print_debug(char c) {
 	RPI_SERIAL.print(c);
 }
+
+void sendAcknowledge(unsigned char *buf) {
+	buf[0] = i_to_c(PACKET_START);
+	buf[PACKET_SIZE-1] = i_to_c(PACKET_END);
+	
+	for (int i = 2; i < PACKET_SIZE-1; i++) {
+		buf[i] = '0';
+	}
+
+	buf[1] = i_to_c(ACK_MSG);
+
+	for (int i = 0; i < PACKET_SIZE; i++) {
+		RPI_SERIAL.print(buf[i]);
+	}
+	
+
+	// RPI_SERIAL.print(buf);  	
+}
