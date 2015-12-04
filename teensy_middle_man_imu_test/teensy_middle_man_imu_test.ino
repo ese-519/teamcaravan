@@ -1,3 +1,16 @@
+
+/*
+
+Changed Brake()
+changed send_ack();
+changed headingCorrection
+changed newTurn
+
+*/
+
+int driveDist = 75;
+int rotDist = 90;
+
 //#include <HMotor.h>
 #include <motor_controller_comms.h>
 #include <SerialMessage.h>
@@ -13,16 +26,26 @@
 Adafruit_9DOF                dof   = Adafruit_9DOF();
 Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(30301);
 Adafruit_LSM303_Mag_Unified   mag   = Adafruit_LSM303_Mag_Unified(30302);
+Adafruit_L3GD20_Unified gyro = Adafruit_L3GD20_Unified(20);
 
 float headingCorrection;
 sensors_vec_t   orientation;
+
+float heading = 0;
 
 float v_0, v_1 = 0;
 float x_0, x_1 = 0;
 float t_0, t_1, t_d = 0;
 float totalX = 0;
 
+float last_a = 0;
+
 bool waitingNewPacket = false;
+
+bool go = false;
+
+char inChar = 'b';
+char lastChar = 'b';
 
 unsigned char last_msg_buf[PACKET_SIZE];
 
@@ -30,15 +53,18 @@ float target_x = 0;
 float target_deg = 0;
 
 float drive_vel = 3.9;
-float turn_vel = 1.9;
+float turn_vel = 3.9;
 
-int turnLength = 400;
+int turnLength = 1000;
 
-bool checkObstacles = false;
+bool checkObstacles = true;
 bool checkHallway = false;
+bool newTurn = false;
 
 bool isDoingTurn = false;
 bool isDoingDrive = false;
+
+bool wantToTurn = false;
 
 bool isCenter = true;
 bool isLeft = false;
@@ -86,14 +112,29 @@ void initSensors()
     Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
     while(1);
   }
+  
+  gyro.enableAutoRange(true);
+  
+  /* Initialise the sensor */
+  if(!gyro.begin())
+  {
+    /* There was a problem detecting the L3GD20 ... check your connections */
+    Serial.println("Ooops, no L3GD20 detected ... Check your wiring!");
+    while(1);
+  }
 }
 
 int ftToMm(float ft) {
    return (int)ft * 304.8; 
 }
 
-int distance(int deg) {
+int distance(int deg, bool z = true) {
    lidar_dist d = get_degree(deg%360);
+   
+   if ((int)d.dist == 0 && z) {
+      return distanceInRange(deg-1, deg+1); 
+   }
+   
    return (int)d.dist;
 }
 
@@ -101,8 +142,8 @@ float distanceInRange(int s, int e) {
    int cnt = 0;
    float res = 0;
    for (int i = s; i <= e; i++) {
-      if (distance(i) != 0) {
-         res += distance(i);
+      if (distance(i, false) != 0) {
+         res += distance(i, false);
          cnt++; 
       }
    } 
@@ -134,12 +175,12 @@ int scanFront() {
     }
   }
   
-  if (middle-low > high-middle) {
-     // More object to right, so turn left (CW)
+  if (low-middle > middle-high) {
+     // More object to left, so turn right (CW)
+     return -1;
+  } else if (low-middle < middle-high) {
+     // More object to right, so turn left (CCW)
      return 1;
-  } else if (middle-low < high-middle) {
-     // More object to left, so turn right (CCW)
-     return -1; 
   } else {
      return 0; 
   }
@@ -157,9 +198,11 @@ float getXi(float deltaT, float a) {
 void processImu() {
     sensors_event_t event; 
     sensors_event_t mag_event;   
+    sensors_event_t event_gyro; 
     
     accel.getEvent(&event);
     mag.getEvent(&mag_event);
+    gyro.getEvent(&event_gyro);
     dof.magGetOrientation(SENSOR_AXIS_Z, &mag_event, &orientation);
    
     float a = abs(event.acceleration.x);
@@ -167,10 +210,23 @@ void processImu() {
     t_0 = t_1;
     t_1 = millis();
     t_d = (t_1 - t_0)/1000;
+    
+    float rad_s = event_gyro.gyro.z;
+    
+    if (abs(rad_s) <= 0.016) { 
+        rad_s = 0;
+    }
+    
+    float deg = (rad_s * t_d) * 180 / PI;
+    heading = scaleHeading(heading + deg);
+    
+//    Serial.print("A: "); Serial.print(a); Serial.print(" Deg: "); Serial.print(deg); Serial.print(" Rad_s: "); Serial.println(rad_s);
         
-    if (abs(a) < 0.6) { 
+    if (abs(a) < 0.3) { 
         a = 0;
     }
+    
+    last_a = a;
 
     float last_v = v_1;
     v_1 = getVi(t_d, a);
@@ -182,6 +238,10 @@ void processImu() {
     x_0 = last_x;
     
     totalX += x_1-x_0;
+    
+//    Serial.print("Total: "); Serial.print(totalX);
+//    Serial.print(" A: "); Serial.print(a);
+//    Serial.print(" V: "); Serial.println(v_1);
 }
 
 void setup() {
@@ -205,6 +265,9 @@ void brake() {
   make_packet_vels(vel_buf, 0.0, 0.0);
   vel_buf[1] = 0;
   send_packet_serial(vel_buf);
+  
+  v_0, v_1 = 0;
+  x_0, x_1 = 0;
 }
 
 void print(const char *c) {
@@ -219,36 +282,82 @@ void println(const char *c) {
 }
 
 void sendAck() {
-   waitingNewPacket = true;
-   RPI_SERIAL.print(ACK_MSG);
+    Serial.print("Total: "); Serial.print(totalX);
+    Serial.print("Target: "); Serial.print(target_x);
+    Serial.print(" A: "); Serial.print(last_a);
+    Serial.print(" V: "); Serial.println(v_1); 
+    
+    Serial.print("Target Deg: "); Serial.print(getTargDeg()); 
+    Serial.print(" Cur Deg: "); Serial.println(getOrient()); 
+//    
+    Serial.println("!!!!ACK!!!!");
+ 
+    waitingNewPacket = true;
+    RPI_SERIAL.print(ACK_MSG);
+    delay(turnLength);
 }
 
 bool checkNewPacket() {
   
-   if (msg_buf[1] != TURN_MSG && msg_buf[1] != FWD_MSG) {
-       return false;
-   }
-     
-   for (int i = 0; i < PACKET_SIZE; i++) {
-       if (last_msg_buf[i] != msg_buf[i]) {
-           return true;
-       }
-   }
-   
-   return false;
+//    if (lastChar != inChar)
+//      Serial.print(lastChar); Serial.print(" : "); Serial.println(inChar);
+  
+    return inChar != lastChar;
+  
+//   if (msg_buf[1] != TURN_MSG && msg_buf[1] != FWD_MSG) {
+//       return false;
+//   }
+//     
+//   for (int i = 0; i < PACKET_SIZE; i++) {
+//       if (last_msg_buf[i] != msg_buf[i]) {
+//           return true;
+//       }
+//   }
+//   
+//   return false;
 }
 
-void loop() {  
+float scaleHeading(float in) {
+  while (in >= 360) {
+     in = in - 360; 
+  }
+  
+  while (in < 0) {
+     in = in + 360; 
+  }
+  
+  return in;
+}
+
+float getTargDeg() {
+   return scaleHeading(target_deg); 
+}
+
+float getOrient() { 
+   //return scaleHeading(orientation.heading + headingCorrection);
+   return scaleHeading(heading);
+}
+
+void loop() {
+  
+  if (Serial.available()) {
+    char c = Serial.read();
+    if (c == 'd' || c == 't' || c == 'b') {
+      inChar = c;
+      Serial.println(inChar);
+    }
+  }
+  
   loop_lidar();
 
   processImu();
 
-  if (millis() - lastSerPacket > 500) {
-      lastSerPacket = millis();
-      char x_buf[10];
-      String(totalX).toCharArray(x_buf, 10);
-      println(x_buf);
-  }
+//  if (millis() - lastSerPacket > 500) {
+//      lastSerPacket = millis();
+//      char x_buf[10];
+//      String(totalX).toCharArray(x_buf, 10);
+////      println(x_buf);
+//  }
 
   if (millis() - lastMovePacket > moveTimeout || waitingNewPacket) {
      brake(); 
@@ -260,44 +369,53 @@ void loop() {
       target_x = 0;
   }
   
-  if (abs(orientation.heading + headingCorrection - target_deg) < 5 && isDoingTurn) {
+  if (abs(getOrient() - getTargDeg()) < 5 && isDoingTurn) {
+//     Serial.print("Updating Heading Cor.: "); Serial.println(headingCorrection);
+     headingCorrection = -1 * orientation.heading;
+     heading = getTargDeg();
+//     Serial.print("Updating Heading Cor.: "); Serial.println(headingCorrection);
      isDoingTurn = false;
      sendAck();
   }
   
-  if (RPI_SERIAL.available() >= PACKET_SIZE) {
+  if (true) {//RPI_SERIAL.available() >= PACKET_SIZE) {
 //     while (RPI_SERIAL.available()) {
 //        Serial.println(RPI_SERIAL.read()); 
 //     }
 //     Serial.println("");
-    if (read_in_packet_2(msg_buf)) {
+    if (true) {
       lastMovePacket = millis();
       
       if (checkNewPacket()) {
+         lastChar = inChar;
+         Serial.println("new pkt");
          brake();
          delay(turnLength);
-         if (msg_buf[1] == TURN_MSG) {
-            isDoingTurn = true; 
+         if (inChar == 't') {
+            isDoingTurn = true;
+            newTurn = true;
+            //target_deg = scaleHeading(getOrient());
          }
-         else if (msg_buf[1] == FWD_MSG) {
-            isDoingDrive = true; 
+         else if (inChar == 'd') {
+            isDoingDrive = true;
          }
          
          waitingNewPacket = false;
-         for (int i = 0; i < PACKET_SIZE; i++) {
-            last_msg_buf[i] = msg_buf[i];
-         }
+//         for (int i = 0; i < PACKET_SIZE; i++) {
+//            last_msg_buf[i] = msg_buf[i];
+//         }
       }
       
       if (checkBrake() || waitingNewPacket) {
-         Serial.println("Braked"); 
+//          Serial.println("wait");
+//         Serial.println("Braked"); 
       } else { 
         checkInfo();
         
         // Check front
         int frontObject = scanFront();
         if (frontObject == 0 || !checkObstacles) { 
-//          Serial.println("No obstacles");   
+//          Serial.println("No obstacles");
 
           // Don't worry about hallway centering if Pi wants us to turn
           if (!checkTurn()) {
@@ -339,10 +457,10 @@ void loop() {
           processPacket();
           
         } else {
-          println("Obstacle");
-          turnWithVel(turnSpeed * frontObject);
-//          Serial.print("Oobstacles at ");   
+//          println("Obstacle");
+//          Serial.print("Obstacles at ");   
 //          Serial.println(frontObject);
+          turnWithVel(turn_vel * frontObject);
         }
       }
     }
@@ -374,113 +492,163 @@ void drive(float dist) {
 
 void turnWithVel(float vel) {
   if (vel > 0) {
-     println("Turning left: ");
-     Serial.println(vel);
-     make_packet_vels(vel_buf, -vel, vel);
+//     print("Turning left: ");
+//     Serial.println(vel);
+     make_packet_vels(vel_buf, vel, -vel);
      send_packet_serial(vel_buf);
    } else {
-     println("Turning right: ");
-     Serial.println(vel);
-     make_packet_vels(vel_buf, vel, -vel);
+//     print("Turning right: ");
+//     Serial.println(vel);
+     vel = -vel;
+     make_packet_vels(vel_buf, -vel, vel);
      send_packet_serial(vel_buf);
    }
 }
 
 void turn(float deg) {
-  target_deg = target_deg + deg;
-  while (target_deg > 360) {
-     target_deg -= 360;
+//  if (target_deg != deg) {
+//  }
+  
+  if (newTurn) {
+     newTurn = false;
+     heading = getTargDeg();
+     target_deg = scaleHeading(getOrient() + deg); 
+     Serial.print("New turn: "); Serial.print(deg); Serial.print(" Tar: "); Serial.println(target_deg);
   }
   
-  make_packet_vels(vel_buf, -turn_vel, turn_vel);
+//  Serial.print("Target Deg: "); Serial.print(getTargDeg()); 
+//  Serial.print(" Cur Deg: "); Serial.println(getOrient()); 
+  
+  make_packet_vels(vel_buf, turn_vel, -turn_vel);
   send_packet_serial(vel_buf);
 }
 
 bool checkBrake() {
+  return inChar == 'b';
   if (msg_buf[1] == BRK_MSG) {
-     brake(); 
+     brake();
      return true;
   }
   
   return false;
 }
 
+bool canTurn(bool left = true) {
+   if (left) {
+      float leftWall = distanceInRange(L_START, L_END);
+//      Serial.println(leftWall);
+      return leftWall > 1800;
+     
+   } else { 
+      // for now, forget right
+      return false;
+   } 
+}
+
 bool checkTurn() {
-  if (msg_buf[1] == TURN_MSG) {
-     return true;
-  }
+  return inChar == 't';
+//  if (msg_buf[1] == TURN_MSG) {
+//     return true;
+//  }
   
   return false;
 }
 
 void checkInfo() {
-   if (msg_buf[1] == INFO_MSG) {
-      processPacket();
-   } 
+    false;
+//   if (msg_buf[1] == INFO_MSG) {
+//      processPacket();
+//   } 
 }
 
 void processPacket() {  
 //  for (int i = 0; i < PACKET_SIZE; i++) {
 //     Serial.println(msg_buf[i]);
 //  } 
-
-  int msg_type = msg_buf[1];
-  float vel;
-  int dir;
-  switch (msg_type) {
-     case TURN_MSG:
-       vel = getVel(1);
-       dir = msg_buf[2];
-       // for now, always just turn the given deg ("vel")
-       turn(vel);
-//       if (dir == DIR_LEFT) {
-//         turn(vel);
-//       } else if (dir == DIR_RIGHT) {
-//         turn(-vel);
-//       } else {
-//         turn(vel); 
-//       }
-       break;
-     case FWD_MSG:
-       vel = getVel(0);
-       drive(vel);
-       break;
-     case BWD_MSG:
-       vel = getVel(0);
-       drive(vel);
-       break;
-     case BRK_MSG:
-       brake();
-       break;
-     case INFO_MSG:
-       vel = getVel(1);
-       Serial.println("INFO");
-       Serial.println(vel);
-       int info_type = msg_buf[2];
-       switch (info_type) {
-          case INFO_OBS:
-            checkObstacles = !checkObstacles;
-            if (checkObstacles) {
-              println("Obs True"); 
-            } else {
-              println("Obs False"); 
-            }
-            break;
-          case INFO_HLWY:
-            checkHallway = !checkHallway;
-            if (checkHallway) {
-              println("Hallway True"); 
-            } else {
-              println("Hallway False"); 
-            }
-            break;
-          case INFO_HAZ_RNG:
-            hazardRange = ftToMm(vel);
-            break;
-          case INFO_WALL_RNG:
-            wallDiff = ftToMm(vel);
-            break;
+     int vel; 
+     switch (inChar) {
+     case 't':
+       vel = rotDist;
+       if (canTurn()) { 
+          Serial.println('y');
+          turn(vel);
+       } else {
+          Serial.println('n');
+          if (newTurn) {
+             turn(vel); 
+          }
+          target_x = 100;
+          totalX = 0;
+          drive(vel);
        }
        break;
-  }
+     case 'd':
+       vel = driveDist;
+       drive(vel);
+       break;
+     case 'b':
+       brake();
+       break;
+     }
 }
+    
+//  int msg_type = msg_buf[1];
+//  float vel;
+//  int dir;
+//  switch (msg_type) {
+//     case TURN_MSG:
+//       vel = getVel(1);
+//       dir = msg_buf[2];
+//       // for now, always just turn the given deg ("vel")
+//       turn(vel);
+////       if (dir == DIR_LEFT) {
+////         turn(vel);
+////       } else if (dir == DIR_RIGHT) {
+////         turn(-vel);
+////       } else {
+////         turn(vel); 
+////       }
+//       break;
+//     case FWD_MSG:
+//       vel = getVel(0);
+//       drive(vel);
+//       break;
+//     case BWD_MSG:
+//       vel = getVel(0);
+//       drive(vel);
+//       break;
+//     case BRK_MSG:
+//       brake();
+//       break;
+//     case INFO_MSG:
+//       vel = getVel(1);
+//       Serial.println("INFO");
+//       Serial.println(vel);
+//       int info_type = msg_buf[2];
+//       switch (info_type) {
+//          case INFO_OBS:
+//            checkObstacles = !checkObstacles;
+//            if (checkObstacles) {
+//              println("Obs True"); 
+//            } else {
+//              println("Obs False"); 
+//            }
+//            break;
+//          case INFO_HLWY:
+//            checkHallway = !checkHallway;
+//            if (checkHallway) {
+//              println("Hallway True"); 
+//            } else {
+//              println("Hallway False"); 
+//            }
+//            break;
+//          case INFO_HAZ_RNG:
+//            hazardRange = ftToMm(vel);
+//            break;
+//          case INFO_WALL_RNG:
+//            wallDiff = ftToMm(vel);
+//            break;
+//       }
+//       break;
+//  }
+//}
