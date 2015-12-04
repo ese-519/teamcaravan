@@ -3,10 +3,40 @@
 #include <SerialMessage.h>
 #include <Lidar.h>
 
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_LSM303_U.h>
+#include <Adafruit_L3GD20_U.h>
+#include <Adafruit_9DOF.h>
+
+/* Assign a unique ID to the sensors */
+Adafruit_9DOF                dof   = Adafruit_9DOF();
+Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(30301);
+Adafruit_LSM303_Mag_Unified   mag   = Adafruit_LSM303_Mag_Unified(30302);
+
+float headingCorrection;
+sensors_vec_t   orientation;
+
+float v_0, v_1 = 0;
+float x_0, x_1 = 0;
+float t_0, t_1, t_d = 0;
+float totalX = 0;
+
+bool waitingNewPacket = false;
+
+unsigned char last_msg_buf[PACKET_SIZE];
+
+float target_x = 0;
+float target_deg = 0;
+
+float drive_vel = 1.9;
+float turn_vel = 1.1;
+
+int turnLength = 400;
+
 bool checkObstacles = true;
 bool checkHallway = true;
 
-int turnLength = 400;
 bool isCenter = true;
 bool isLeft = false;
 bool isRight = false;
@@ -36,6 +66,22 @@ int wallIgnoreRange = 3048; //10FT
 
 int turnSpeed = 4;
 bool isStopped = true;
+
+void initSensors()
+{
+  if(!accel.begin())
+  {
+    /* There was a problem detecting the LSM303 ... check your connections */
+    Serial.println(F("Ooops, no LSM303 detected ... Check your wiring!"));
+    while(1);
+  }
+  if(!mag.begin())
+  {
+    /* There was a problem detecting the LSM303 ... check your connections */
+    Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
+    while(1);
+  }
+}
 
 int ftToMm(float ft) {
    return (int)ft * 304.8; 
@@ -95,11 +141,52 @@ int scanFront() {
   
 }
 
+float getVi(float deltaT, float a) {
+    return v_0 + a * deltaT;
+}
+
+float getXi(float deltaT, float a) {
+    return x_0 + (v_0 * deltaT) + (0.5 * a * deltaT * deltaT);
+}
+
+void processImu() {
+    sensors_event_t event; 
+    sensors_event_t mag_event;   
+    
+    accel.getEvent(&event);
+    mag.getEvent(&mag_event);
+    dof.magGetOrientation(SENSOR_AXIS_Z, &mag_event, &orientation);
+   
+    float a = abs(event.acceleration.x);
+  
+    t_0 = t_1;
+    t_1 = millis();
+    t_d = (t_1 - t_0)/1000;
+        
+    if (a > 0.8) {
+      float last_v = v_1;
+      v_1 = getVi(t_d, a);
+      
+      x_0 = x_1;
+      x_1 = getXi(t_d, a);
+      
+      v_0 = last_v;
+      
+      totalX += x_1-x_0;
+    }
+}
+
 void setup() {
   Serial.begin(115200);
   LIDAR_SERIAL.begin(115200);
   RPI_SERIAL.begin(115200);
   MOTOR_SERIAL.begin(115200);
+  
+  initSensors();
+  
+  // Process IMU to get initial heading correction (to zero)
+  processImu();
+  headingCorrection = -1 * orientation.heading;
   
   init_lidar();
 }
@@ -124,18 +211,39 @@ void println(const char *c) {
 }
 
 void sendAck() {
+   waitingNewPacket = true;
    RPI_SERIAL.print(ACK_MSG);
+}
+
+bool checkNewPacket() {
+  
+   if (msg_buf[1] != TURN_MSG && msg_buf[1] != FWD_MSG) {
+       return false;
+   }
+     
+   for (int i = 0; i < PACKET_SIZE; i++) {
+       if (last_msg_buf[i] != msg_buf[i]) {
+           return true;
+       }
+   }
+   
+   return false;
 }
 
 void loop() {  
   loop_lidar();
-  
-  sendAck();
-  delay(100);
 
-  if (millis() - lastMovePacket > moveTimeout) {
+  if (millis() - lastMovePacket > moveTimeout || waitingNewPacket) {
      brake(); 
-//      drive(4.0);
+  }
+  
+  if (totalX >= target_x && target_x != 0) {
+      sendAck();
+      target_x = 0;
+  }
+  
+  if (abs(orientation.heading - target_deg) < 5) {
+     sendAck();
   }
   
   if (RPI_SERIAL.available() >= PACKET_SIZE) {
@@ -145,7 +253,17 @@ void loop() {
 //     Serial.println("");
     if (read_in_packet_2(msg_buf)) {
       lastMovePacket = millis();
-      if (checkBrake()) {
+      
+      if (checkNewPacket()) {
+         brake();
+         delay(turnLength);
+         waitingNewPacket = false;
+         for (int i = 0; i < PACKET_SIZE; i++) {
+            last_msg_buf[i] = msg_buf[i];
+         }
+      }
+      
+      if (checkBrake() || waitingNewPacket) {
          Serial.println("Braked"); 
       } else { 
         checkInfo();
@@ -170,7 +288,7 @@ void loop() {
               isRight = false;
               brake();
               delay(turnLength);
-              turn(turnSpeed);
+              turnWithVel(turnSpeed);
               delay(turnLength);
               brake();
             } else if (checkHallway && rightWall - leftWall > wallDiff && rightWall < wallIgnoreRange && (isCenter || isLeft)) {
@@ -181,7 +299,7 @@ void loop() {
               isLeft = false;
               brake();
               delay(turnLength);
-              turn(-turnSpeed);
+              turnWithVel(-turnSpeed);
               delay(turnLength);
               brake();
             } else {
@@ -196,7 +314,7 @@ void loop() {
           
         } else {
           println("Obstacle");
-          turn(turnSpeed * frontObject);
+          turnWithVel(turnSpeed * frontObject);
 //          Serial.print("Oobstacles at ");   
 //          Serial.println(frontObject);
         }
@@ -244,18 +362,22 @@ float getVel(int off) {
   return vel;
 }
 
-void drive(float vel) {
-  if (vel > 0) {
-    println("Forward: ");
-  } else {
-    println("Backward: ");
+void drive(float dist) {
+//  if (vel > 0) {
+//    println("Forward: ");
+//  } else {
+//    println("Backward: ");
+//  }
+//  Serial.println(vel);
+  if (target_x == 0) {
+     totalX = 0; 
   }
-  Serial.println(vel);
-  make_packet_vels(vel_buf, vel, vel);
+  target_x = dist;
+  make_packet_vels(vel_buf, drive_vel, drive_vel);
   send_packet_serial(vel_buf);
 }
 
-void turn(float vel) {
+void turnWithVel(float vel) {
   if (vel > 0) {
      println("Turning left: ");
      Serial.println(vel);
@@ -267,6 +389,16 @@ void turn(float vel) {
      make_packet_vels(vel_buf, vel, -vel);
      send_packet_serial(vel_buf);
    }
+}
+
+void turn(float deg) {
+  target_deg = target_deg + deg;
+  while (target_deg > 360) {
+     target_deg -= 360;
+  }
+  
+  make_packet_vels(vel_buf, -turn_vel, turn_vel);
+  send_packet_serial(vel_buf);
 }
 
 bool checkBrake() {
