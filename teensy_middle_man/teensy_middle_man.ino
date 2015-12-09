@@ -54,6 +54,7 @@ bool isDoingTurn = false;
 bool isDoingDrive = false;
 
 bool wantToTurn = false;
+bool atDoor = false;
 
 bool isCenter = true;
 bool isLeft = false;
@@ -80,6 +81,7 @@ unsigned char vel_buf[PACKET_SIZE];
 #define R_END 101
 
 // in mm
+int doorRange = 1500; // ~5Ft
 int hazardRange = 709; // 2.3FT
 int wallDiff = 304; // 1FT
 int wallIgnoreRange = 3048; //10FT
@@ -153,6 +155,12 @@ float distanceInRange(int s, int e) {
    } 
    
    return res/cnt;
+}
+
+int checkDoor() {
+   int delta = (int)target_deg - heading;
+   int middle = (F_START + F_END)/2 + delta;
+   return distanceInRange(middle-1, middle+1) < doorRange;
 }
 
 int scanFront() {
@@ -568,12 +576,23 @@ void processPacket() {
        vel = getVel(0);
        drive(vel);
        break;
-     case BWD_MSG:
-       vel = getVel(0);
-       drive(vel);
-       break;
      case BRK_MSG:
        brake();
+       break;
+     case DOOR_MSG:
+       vel = getVel(0);
+       if (checkDoor()){
+        atDoor = true;
+        brake();
+       } else {
+        if (atDoor) {
+          // we were stopped at the door, but now it's open so ack this msg
+          sendAck();
+          target_x = 0;
+        }
+        atDoor = false;
+        drive(vel); 
+       }
        break;
      case INFO_MSG:
        vel = getVel(1);

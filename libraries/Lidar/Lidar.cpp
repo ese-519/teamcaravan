@@ -28,6 +28,13 @@ int process_packet() {
 		// "invalid data" flag
 		if(lidar_buf[temp_ind] & 0x80) {
 			int index = (4*(lidar_buf[1] - 160)) + k;
+	
+			uint16_t deg = (4*(lidar_buf[1] - 160)) + k;
+			lidar_dist_buf_complete[index].degree = deg;
+			lidar_dist_buf_complete[index].dist = 0;
+			lidar_dist_buf_complete[index].dist_x = 0; //(int16_t)(cur_dist * cos((double)PI/180 * (double)deg));
+			lidar_dist_buf_complete[index].dist_y = 0; //(int16_t)(cur_dist * sin((double)PI/180 * (double)deg));
+
 			// Serial.print("Invalid ");
 			// Serial.println(index);
 			// Serial.print(temp_ind);

@@ -9,7 +9,7 @@
 #define ACK_MSG 0x05
 #define TURN_MSG 6
 #define FWD_MSG 7
-#define BWD_MSG 8
+#define DOOR_MSG 8
 #define BRK_MSG 9
 
 #define INFO_OBS 5
