@@ -1,4 +1,4 @@
-t//#include <HMotor.h>
+//#include <HMotor.h>
 #include <motor_controller_comms.h>
 #include <SerialMessage.h>
 #include <Lidar.h>
@@ -39,7 +39,7 @@ unsigned char last_msg_buf[PACKET_SIZE];
 float target_x = 0;
 float target_deg = 0;
 
-float drive_vel = 3.9;
+float drive_vel = 7.9;
 float turn_vel = 3.9;
 
 int turnLength = 1000;
@@ -115,6 +115,21 @@ void initSensors()
 
 int ftToMm(float ft) {
    return (int)ft * 304.8; 
+}
+
+bool canTurn(bool left = true) {
+   if (left) {
+      
+      int delta = 90 - (int)abs(heading - target_deg);
+     
+      float leftWall = distanceInRange(L_START - delta, L_END - delta);
+//      Serial.println(leftWall);
+      return leftWall > turnThreshold || leftWall < 200;
+     
+   } else { 
+      // for now, forget right
+      return false;
+   } 
 }
 
 int distance(int deg, bool z = true) {
@@ -363,7 +378,10 @@ void loop() {
          if (msg_buf[1] == TURN_MSG) {
             isDoingTurn = true;
             newTurn = true;
-            //target_deg = scaleHeading(getOrient());
+            // Reset heading correction
+            headingCorrection = -1 * orientation.heading;
+            // Set it to something "not satisfied"
+            target_deg = getOrient() + 100;
          }
          else if (msg_buf[1] == FWD_MSG) {
             isDoingDrive = true;
@@ -388,7 +406,7 @@ void loop() {
 //          Serial.println("No obstacles");
 
           // Don't worry about hallway centering if Pi wants us to turn
-          if (!checkTurn()) {
+          if (!checkTurn() || !canTurn()) {
             // Check left
             float leftWall = distanceInRange(L_START, L_END);
             // Check right
@@ -505,18 +523,6 @@ bool checkBrake() {
   }
   
   return false;
-}
-
-bool canTurn(bool left = true) {
-   if (left) {
-      float leftWall = distanceInRange(L_START, L_END);
-//      Serial.println(leftWall);
-      return leftWall > turnThreshold || leftWall < 200;
-     
-   } else { 
-      // for now, forget right
-      return false;
-   } 
 }
 
 bool checkTurn() {
