@@ -1,17 +1,4 @@
-
-/*
-
-Changed Brake()
-changed send_ack();
-changed headingCorrection
-changed newTurn
-
-*/
-
-int driveDist = 75;
-int rotDist = 90;
-
-//#include <HMotor.h>
+t//#include <HMotor.h>
 #include <motor_controller_comms.h>
 #include <SerialMessage.h>
 #include <Lidar.h>
@@ -57,6 +44,8 @@ float turn_vel = 3.9;
 
 int turnLength = 1000;
 
+int turnThreshold = 1500;
+
 bool checkObstacles = true;
 bool checkHallway = false;
 bool newTurn = false;
@@ -91,7 +80,7 @@ unsigned char vel_buf[PACKET_SIZE];
 #define R_END 101
 
 // in mm
-int hazardRange = 609; // 2FT
+int hazardRange = 709; // 2.3FT
 int wallDiff = 304; // 1FT
 int wallIgnoreRange = 3048; //10FT
 
@@ -172,6 +161,8 @@ int scanFront() {
     // nothing found
     if (distance(middle) == 0 || distance(middle) >= hazardRange) {
       return 0;
+    } else {
+       return 1; 
     }
   }
   
@@ -299,11 +290,6 @@ void sendAck() {
 
 bool checkNewPacket() {
   
-//    if (lastChar != inChar)
-//      Serial.print(lastChar); Serial.print(" : "); Serial.println(inChar);
-  
-//    return inChar != lastChar;
-  
    if (msg_buf[1] != TURN_MSG && msg_buf[1] != FWD_MSG) {
        return false;
    }
@@ -369,7 +355,7 @@ void loop() {
 //     Serial.println("");
     if (read_in_packet_2(msg_buf)) {
       lastMovePacket = millis();
-      
+//      Serial.println("packet");
       if (checkNewPacket()) {
 //         Serial.println("new pkt");
          brake();
@@ -381,6 +367,7 @@ void loop() {
          }
          else if (msg_buf[1] == FWD_MSG) {
             isDoingDrive = true;
+            target_x = 0;
          }
          
          waitingNewPacket = false;
@@ -393,7 +380,7 @@ void loop() {
 //          Serial.println("wait");
 //         Serial.println("Braked"); 
       } else { 
-        checkInfo();
+//        checkInfo();
         
         // Check front
         int frontObject = scanFront();
@@ -450,6 +437,8 @@ void loop() {
     else {
       Serial.println("Packet not read");
     }
+  } else {
+   Serial.println("No srl");
   }
 }
 
@@ -460,16 +449,21 @@ float getVel(int off) {
 
 void drive(float dist) {
 //  if (vel > 0) {
-//    println("Forward: ");
+    println("Forward: ");
 //  } else {
 //    println("Backward: ");
 //  }
-//  Serial.println(vel);
+  Serial.println(dist);
   if (target_x == 0) {
      totalX = 0; 
   }
-  target_x = dist;
-  make_packet_vels(vel_buf, drive_vel, drive_vel);
+  target_x = 2 * dist;
+  
+  if (isDoingTurn) {
+    make_packet_vels(vel_buf, turn_vel, turn_vel);
+  } else {
+    make_packet_vels(vel_buf, drive_vel, drive_vel); 
+  }
   send_packet_serial(vel_buf);
 }
 
@@ -489,6 +483,7 @@ void turnWithVel(float vel) {
 }
 
 void turn(float deg) {
+  Serial.println("turn");
   if (newTurn) {
      newTurn = false;
      heading = getTargDeg();
@@ -516,7 +511,7 @@ bool canTurn(bool left = true) {
    if (left) {
       float leftWall = distanceInRange(L_START, L_END);
 //      Serial.println(leftWall);
-      return leftWall > 1800;
+      return leftWall > turnThreshold || leftWall < 200;
      
    } else { 
       // for now, forget right
@@ -533,43 +528,17 @@ bool checkTurn() {
 }
 
 void checkInfo() {
-   if (msg_buf[1] == INFO_MSG) {
-      processPacket();
-   } 
+   //return false;
+//   if (msg_buf[1] == INFO_MSG) {
+//      processPacket();
+//   } 
 }
 
 void processPacket() {  
-//  for (int i = 0; i < PACKET_SIZE; i++) {
-//     Serial.println(msg_buf[i]);
-//  } 
+  for (int i = 0; i < PACKET_SIZE; i++) {
+     Serial.println(msg_buf[i]);
+  } 
 
-//     int vel; 
-//     switch (inChar) {
-//     case 't':
-//       vel = rotDist;
-//       if (canTurn()) { 
-//          Serial.println('y');
-//          turn(vel);
-//       } else {
-//          Serial.println('n');
-//          if (newTurn) {
-//             turn(vel); 
-//          }
-//          target_x = 100;
-//          totalX = 0;
-//          drive(vel);
-//       }
-//       break;
-//     case 'd':
-//       vel = driveDist;
-//       drive(vel);
-//       break;
-//     case 'b':
-//       brake();
-//       break;
-//     }
-//}
-//    
   int msg_type = msg_buf[1];
   float vel;
   int dir;
