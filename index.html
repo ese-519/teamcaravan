@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <title>HemoGlobeTrotter by ese-519</title>
+  </head>
+
+  <body>
+    <header>
+      <div class="inner">
+        <h1>HemoGlobeTrotter</h1>
+        <h2></h2>
+        <a href="https://github.com/ese-519/teamcaravan" class="button"><small>View project on</small> GitHub</a>
+      </div>
+    </header>
+
+    <div id="content-wrapper">
+      <div class="inner clearfix">
+        <section id="main-content">
+          <h2>
+<a id="welcome-to-team-caravans-hemoglobetrotter-project" class="anchor" href="#welcome-to-team-caravans-hemoglobetrotter-project" aria-hidden="true"><span class="octicon octicon-link"></span></a>Welcome to Team Caravan's HemoGlobeTrotter Project</h2>
+
+<p>Check out the Quick-Start guide to get rolling quickly. For more details on editing the code, read the detail sections below.</p>
+
+<p><img src="https://github.com/ese-519/teamcaravan/blob/master/finished_code/images/bot.jpg" alt="Bot Pic"></p>
+
+<h2>
+<a id="prerequisites" class="anchor" href="#prerequisites" aria-hidden="true"><span class="octicon octicon-link"></span></a>Prerequisites</h2>
+
+<h3>
+<a id="hardware" class="anchor" href="#hardware" aria-hidden="true"><span class="octicon octicon-link"></span></a>Hardware</h3>
+
+<ul>
+<li>2 Teensy's</li>
+<li>Driving Chassis:
+
+<ul>
+<li>2 electric-motors:
+
+<ul>
+<li>Recommend 14v control</li>
+<li><strong>Recommend motors with Rotary Encoders</strong></li>
+</ul>
+</li>
+<li>Motor h-bridge</li>
+<li>4 wheels:
+
+<ul>
+<li>Recommend 2 omni-style wheels for front</li>
+<li>Recommend highly-frictious back wheels</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>14v (or whatever is necessary for electric-motors), 5v, 3.3v available
+
+<ul>
+<li>e.g. 12v battery with regulators</li>
+</ul>
+</li>
+<li>Raspberry Pi with SD card (recommended 8GB+), running Ubuntu (<strong>Raspbian may be better, but is untested with our code</strong>)</li>
+<li>Wi-Fi module for Raspberry Pi</li>
+<li>IMU <a href="https://learn.adafruit.com/adafruit-9-dof-imu-breakout/introduction">Such as this one from Adafruit</a>
+</li>
+<li>Neato Robot Lidar</li>
+<li>(Optional) 2x mrf24j40ma wireless module and separate controller, e.g. Arduino Uno, for wireless joystick control</li>
+</ul>
+
+<h3>
+<a id="software" class="anchor" href="#software" aria-hidden="true"><span class="octicon octicon-link"></span></a>Software</h3>
+
+<ul>
+<li><a href="https://www.arduino.cc/en/Main/Software">Arduino IDE</a></li>
+<li><a href="https://www.pjrc.com/teensy/teensyduino.html">Teensyduino Plug-in for Arduino IDE</a></li>
+<li>Raspberry Pi Python Libraries (can be installed with pip):
+
+<ul>
+<li><a href="http://webpy.org/">Web.py</a></li>
+<li><a href="https://pypi.python.org/pypi/pyserial">pySerial</a></li>
+</ul>
+</li>
+<li>(Optional) ROS installed on Raspberry Pi</li>
+</ul>
+
+<h2>
+<a id="pinout-links-at-time-of-publication" class="anchor" href="#pinout-links-at-time-of-publication" aria-hidden="true"><span class="octicon octicon-link"></span></a>Pinout Links (at time of publication)</h2>
+
+<ul>
+<li><a href="https://www.pjrc.com/teensy/pinout.html">Teensy Pinout</a></li>
+<li><a href="http://pinout.xyz/">Raspberry Pi Pinout</a></li>
+<li><a href="https://xv11hacking.wikispaces.com/LIDAR+Sensor">Lidar Pinout/details</a></li>
+<li><a href="https://learn.adafruit.com/adafruit-9-dof-imu-breakout/connecting-it-up">Suggested IMU</a></li>
+</ul>
+
+<h2>
+<a id="quick-start-guide" class="anchor" href="#quick-start-guide" aria-hidden="true"><span class="octicon octicon-link"></span></a>Quick-Start Guide</h2>
+
+<p>First, make sure you have all of the non-optional prerequisites taken care of. Then, proceed through the following sections:</p>
+
+<h3>
+<a id="communication-wiring" class="anchor" href="#communication-wiring" aria-hidden="true"><span class="octicon octicon-link"></span></a>Communication Wiring</h3>
+
+<p>The prepared communication chain is as follows:</p>
+
+<ul>
+<li>Connect Lidar's UART pins to middle-teensy's Serial 1 pins
+
+<ul>
+<li>The Lidar pinout site above can describe Lidar version differences, but for our version of Lidar, that meant the Lidar's Orange pin went to Teensy 3.2's pin 0, and Brown pin to pin 1</li>
+</ul>
+</li>
+<li>Connect Raspberry Pi's UART pins to middle-teensy's Serial 2 pins:
+
+<ul>
+<li>Rpi Pin 8 to Teensy pin 9</li>
+<li>Rpi pin 10 to Teensy pin 10</li>
+</ul>
+</li>
+<li>Connect Motor-Teensy's Serial 3 pins to middle-teensy's Serial 3 pins:
+
+<ul>
+<li>Connect pin 7 to pin 8, and pin 8 to 7 between both Teensys</li>
+</ul>
+</li>
+<li>Connect the IMU to the middle-Teensy:
+
+<ul>
+<li>IMU SCL to Teensy pin 19</li>
+<li>IMU SDA to Teensy pin 18</li>
+</ul>
+</li>
+</ul>
+
+<h3>
+<a id="power-wiring" class="anchor" href="#power-wiring" aria-hidden="true"><span class="octicon octicon-link"></span></a>Power Wiring</h3>
+
+<p>The following Power Configuration is important to ensure not blowing out the Lidar and making sure that the serial communication works:</p>
+
+<ul>
+<li>3.3v goes to the Lidar's DC motor (can give 5v to spin faster)</li>
+<li>One common 5v should run through both Teensy's, the Raspberry Pi, the IMU, and the Lidar
+
+<ul>
+<li><strong>Do not give the Lidar more than 5v as it will likely blowout</strong></li>
+<li>To connect the Raspberry Pi to voltage pins, you can splice a USB micro B cable, and connect to the red and black wires (<strong>NOTE:</strong> it may not be entirely standard that red and black are +/-, so be careful depending on your USB plug)</li>
+<li>
+<strong>Important:</strong> The Rpi and middle-Teensy need this common ground for Serial communication to work</li>
+</ul>
+</li>
+<li>Recommended 14v to the H-bridge, then to the motors as per your h-bridge pinout</li>
+</ul>
+
+<h3>
+<a id="motor-wiring" class="anchor" href="#motor-wiring" aria-hidden="true"><span class="octicon octicon-link"></span></a>Motor Wiring</h3>
+
+<p>Depending on your motors and H-bridge, connect using the following details about the motor-Teensy:</p>
+
+<table>
+<thead>
+<tr>
+<th>Motor 1</th>
+<th>Motor 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PWM: 22</td>
+<td>PWM: 23</td>
+</tr>
+<tr>
+<td>IN_A: 18</td>
+<td>IN_A: 20</td>
+</tr>
+<tr>
+<td>IN_B: 19</td>
+<td>IN_B: 21</td>
+</tr>
+<tr>
+<td>ENC_A: 2</td>
+<td>ENC_A: 4</td>
+</tr>
+<tr>
+<td>ENC_B: 3</td>
+<td>ENC_B: 5</td>
+</tr>
+</tbody>
+</table>
+
+<h3>
+<a id="final-steps" class="anchor" href="#final-steps" aria-hidden="true"><span class="octicon octicon-link"></span></a>Final Steps</h3>
+
+<p>Now that everything is wired up, ensure that the Lidar is mounted in a forward-facing direction such that it's line-of-sight is not blocked. <strong>NOTE: the Lidar degree has an offset of about -10 degrees. It should be mounted straight, but that means that immediately forward is actually returned as 190 degrees by the Lidar. The code as-is expects this offset.</strong></p>
+
+<p><strong>Install the Teensy Libraries in your Arduino Library folder.</strong></p>
+
+<ul>
+<li>Put the appropriate Teensy code on each Teensy, and put the rpi_webpy on the Raspberry Pi (or use rpi_webpy_no_ros to start quickly)</li>
+<li>Power on the devices</li>
+<li>SSH into Rpi:
+
+<ul>
+<li>Edit map file as necessary</li>
+<li>Change contentRoot path name in hemo_web.py file</li>
+<li>Start the hemo_web.py file</li>
+<li>Access the website on the Pi's IP address with the port displayed in the terminal after running (default is 8080)</li>
+</ul>
+</li>
+</ul>
+
+<h2>
+<a id="details" class="anchor" href="#details" aria-hidden="true"><span class="octicon octicon-link"></span></a>Details</h2>
+
+<h3>
+<a id="overall-workflow" class="anchor" href="#overall-workflow" aria-hidden="true"><span class="octicon octicon-link"></span></a>Overall Workflow</h3>
+
+<p>The HemoGlobeTrotter v2.0 is an autonomous robot designed to carry packages, specifically blood, from a source to a destination. It was designed to be very flexibly transported, such that it can be placed in a new environment with a floorplan and go from there. </p>
+
+<h3>
+<a id="electronics" class="anchor" href="#electronics" aria-hidden="true"><span class="octicon octicon-link"></span></a>Electronics</h3>
+
+<p>The following Component Diagram shows how the components interact: 
+<img src="https://github.com/ese-519/teamcaravan/blob/master/finished_code/images/comp.png" alt="Component Diagram Image"></p>
+
+<h3>
+<a id="chassis-hardware" class="anchor" href="#chassis-hardware" aria-hidden="true"><span class="octicon octicon-link"></span></a>Chassis Hardware</h3>
+
+<p>We used Solidworks to design laser-cut MDF to create the robot chassis and payload container. The container had to be at least large enough to hold the coolers used by hospitals to transport packets of blood. The chassis also had to be strong enough to support the weight of such a payload, which is about 15-20 pounds. We doubled-up some of the MDF in the undercarriage to reinforce the strength. These Solidworks files are in the git repo, with the "ToPrint" folder containing DWG files, as well as SLDPRT files with a press-fit-ready shell added.</p>
+
+<p>We had to make a front axle with 2 omni-wheels. The axle had to be wide enough to not rub against the chassis, but we were limited in what hardware was available. We settled on the following design for the left half, and it was mirrored for the right:</p>
+
+<pre><code>wheel -- axle hub -- wheel -- collar ------- pillow block bearing -- collar 
+</code></pre>
+
+<p><img src="https://github.com/ese-519/teamcaravan/blob/master/finished_code/images/axle.jpg" alt="Axle Image"></p>
+
+<p>The axle was a D-shaft, and all of the hubs/collars/bearings had set screws. These screws kept everything locked on the flat side of the shaft, so that the only point of rotation was the pillow block bearings. The collars (combined with the set screws) kept the wheels/axle from sliding horizontally. Then, the bearings were screwed into the undercarriage of the chassis. </p>
+
+<h3>
+<a id="software-1" class="anchor" href="#software-1" aria-hidden="true"><span class="octicon octicon-link"></span></a>Software</h3>
+
+<p>Our main workflow was as follows: Raspberry Pi first parses the map file. From there, it creates an internal map that can be queried for paths and overall shape. Then it hosts a website that shows the map layout. When a request is made through the website, the internal map is queried for a path from the starting position to the desired position. This path is then stored as a queue of steps, containing instructions such as “drive X units” or “turn Y degrees.” </p>
+
+<p>We put a failsafe in place for each Teensy where if they do not receive a serial message from their “superior” within a set timeframe, they default to braking. Due to this, the Rpi will continually send the top of the queue as a message to the middle Teensy. The middle-Teensy keeps track of the last received message, and when receiving a new instruction, it re-zeros heading and distance. Then, it can now attempt to complete the received instruction while keeping track of distance traveled or degrees rotated. Once an instruction is completed, i.e. the proper distance traveled or degrees rotated, the middle Teensy will send an “acknowledgment” message back to the Rpi. This instructions the Pi to pop off that instruction and send the next one in the queue. After each acknowledgment is sent, the middle Teensy sends brake commands until receiving the next, new instruction.</p>
+
+<p>The middle Teensy will then send continuous commands to the motor Teensy as a packet of two velocities: one per motor. However, it does not simply forward the instruction received from the Rpi. First, it scans a range of degrees in front of it for hazards (all of these distances are checked with the Lidar data).</p>
+
+<h2>
+<a id="serial-lib" class="anchor" href="#serial-lib" aria-hidden="true"><span class="octicon octicon-link"></span></a>Serial lib</h2>
+
+<p>We wrote a custom serial library to communicate between the Raspberry Pi and the middle Teensy. To remain consistent with the existing library used between Teensys, a packet is prefaced with a ‘2’ and terminated with a ‘3’ and were 10 characters long. This caused frustrating limitations, as packets with a 2 or 3 in middle were incorrectly parsed from the serial buffer. Instead of using an English/Arabic character, a unique ASCII character should have been used to identify the start and end of a packet. </p>
+
+<p>The second character in the packet buffer indicates message type: drive forward, backward, turn, or brake. Some other types are defined, such as “info” messages, but those are only for debugging and are not used at runtime.</p>
+
+<p>Following the message type is any necessary information. For example, turn would be followed by a 2-digit degree. Drive is followed by a 2-digit distance. </p>
+
+<h2>
+<a id="lidar-lib" class="anchor" href="#lidar-lib" aria-hidden="true"><span class="octicon octicon-link"></span></a>Lidar lib</h2>
+
+<p>We also wrote a library to parse the Lidar packet data. This code is run in every loop of the middle Teensy. We ran into a few problems with poor Lidar data when looking at reflective surfaces. The Lidar packets do include a "strength" indicator, which is essentially a confidence level. These indicators are supposed to indicate, for example, reflective surfaces, however our current implementation does not check this indicator. This could be a future step. </p>
+
+<p>The new library (using only 11% of the available RAM on a Teensy, down from the initial 350% which was obviously too much) simply reads the Lidar's serial data until it sees the start byte (0xFA). From there, it reads up to 22 consecutive bytes (a complete packet) or until seeing another start byte, thus indicating missing data for that packet. Once a complete packet is read, it is processed for the 4 distances that it contains. Each valid distance is stored in an array of 360 values -- one per degree. Therefore, at any given moment this array will contain the most up-to-date and valid distance received from the Lidar. For some odd reason, the Lidar seems to very infrequently provide valid data for even degree values. This could perhaps be due to the rotation speed. Either way, a 2-degree precision should be plenty to detect obstacles and walls. The packet also indicates if data is poor for a given distance. If it is, we zero out the distance. This is to have the middle Teensy avoid using stale data, if a given degree fails to give good data for a significant length of time. Any distance of 0 is ignored by the middle Teensy.</p>
+
+<h2>
+<a id="middle-man-parameters" class="anchor" href="#middle-man-parameters" aria-hidden="true"><span class="octicon octicon-link"></span></a>middle-man parameters</h2>
+
+<p>There are some configurable parameters defined at the top of the middle Teensy code:</p>
+
+<ul>
+<li>drive_vel: the speed used by each wheel for forward driving</li>
+<li>turn_vel: the speed used by each wheel (one would be negative) to turning</li>
+<li>turnLength: a delay (in ms) used between direction changes to let the momentum settle</li>
+<li>turnThreshold: a distance (in mm) to check clearance before initiating a turn</li>
+<li>checkObstacles: a bool to toggle hazard avoidance</li>
+<li>checkHallway: a bool to toggle hallway centering</li>
+<li>moveTimeout: a timeout duration (in ms) between messages before initiating failsafe-brake</li>
+<li>doorRange: the distance (in mm) for stopping in front of a door</li>
+<li>hazardRange: the distance threshold (in mm) that defines a hazard</li>
+<li>wallDiff: the delta threshold (in mm) that defines being out of center</li>
+<li>wallIgnoreRange: the max distance (in mm) where hallways are ignored if not centered (for example, driving through an atrium or some place where being centered does not make sense)</li>
+</ul>
+
+<p>The following are degree ranges (with -10 degree offset) for directions</p>
+
+<pre><code>// used for scanning for hazards
+#define F_START 150
+#define F_END 230
+// used for checking left turn and hallway centering
+#define L_START 279
+#define L_END 281
+// used for checking right turn and hallway centering
+#define R_START 99
+#define R_END 101
+</code></pre>
+
+<h3>
+<a id="map-file" class="anchor" href="#map-file" aria-hidden="true"><span class="octicon octicon-link"></span></a>Map file</h3>
+
+<p>Here is an example map file format:</p>
+
+<pre><code>  N  90  2
+  P -90  4
+1  17  0
+  N  90  3
+  P -90  1
+2  99  90 40
+  N  90  4
+  P -90  2
+3  17  180
+  N  90  1
+  P -90  3
+4  99  270
+</code></pre>
+
+<p>Each line preceded with an integer are hallway definitions. The format is:</p>
+
+<pre><code>[Hallway ID] [Length] [Degrees] (optional door distance)
+</code></pre>
+
+<p>Each hallway is defined as a length, and degree-orientation offset from the bot’s initial orientation. The lines above a given hallway define its neighbors as below. The door distance is optional, and indicates how far along the hallway there might be a door blocking the path.</p>
+
+<p>Each line preceded with “N” is a hallway that the bot can travel next to, from the current hallway. “P” (for previous) is a hallway that the bot would come from to arrive at the current hallway. The format is:</p>
+
+<pre><code>N/P  [Degrees]  [Hallway ID]
+</code></pre>
+
+<p>Degrees indicate how many degrees should be turned to align on this hallway, and ID is used to lookup the hallway details (e.g. length and global orientation).</p>
+
+<h2>
+<a id="ros" class="anchor" href="#ros" aria-hidden="true"><span class="octicon octicon-link"></span></a>ROS</h2>
+
+<p>We had initially desired to use ROS for SLAM. However, the Raspberry Pi only had one set of serial pins, which we would have used for the Lidar but had to use to communicate to the middle Teensy instead. We were also unable to get any of the ROS IMU packages to compile. <strong>We fully believe this is mostly because we had installed Ubuntu instead of Raspbian. A future improvement would be to use Raspbian instead so that ROS could be utilized more.</strong> As-is, the only ROS package is the web.py script, which simply starts the website. This is because the Pi has no usable input data to integrate with ROS packages. We considered sending Lidar and IMU data from the middle Teensy to the Rpi, however the serial pipe between the two was already very full with the continuous instructions (necessary to avoid the failsafe-brake). </p>
+
+<h2>
+<a id="authors-and-contributors" class="anchor" href="#authors-and-contributors" aria-hidden="true"><span class="octicon octicon-link"></span></a>Authors and Contributors</h2>
+
+<p>Project made by Adam Van Aken and Omkar Nalawade</p>
+        </section>
+
+        <aside id="sidebar">
+          <a href="https://github.com/ese-519/teamcaravan/zipball/master" class="button">
+            <small>Download</small>
+            .zip file
+          </a>
+          <a href="https://github.com/ese-519/teamcaravan/tarball/master" class="button">
+            <small>Download</small>
+            .tar.gz file
+          </a>
+
+          <p class="repo-owner"><a href="https://github.com/ese-519/teamcaravan"></a> is maintained by <a href="https://github.com/ese-519">ese-519</a>.</p>
+
+          <p>This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the Architect theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</p>
+        </aside>
+      </div>
+    </div>
+
+  
+  </body>
+</html>
