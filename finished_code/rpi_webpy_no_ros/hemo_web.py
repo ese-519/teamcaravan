@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from std_msgs.msg import String
 import web
 from hemo_map import *
 import os
