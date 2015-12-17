@@ -31,9 +31,6 @@ bool waitingNewPacket = false;
 
 bool go = false;
 
-char inChar = 'b';
-char lastChar = 'b';
-
 unsigned char last_msg_buf[PACKET_SIZE];
 
 float target_x = 0;
@@ -233,8 +230,6 @@ void processImu() {
     
     float deg = (rad_s * t_d) * 180 / PI;
     heading = scaleHeading(heading + deg);
-    
-//    Serial.print("A: "); Serial.print(a); Serial.print(" Deg: "); Serial.print(deg); Serial.print(" Rad_s: "); Serial.println(rad_s);
         
     if (abs(a) < 0.3) { 
         a = 0;
@@ -252,10 +247,6 @@ void processImu() {
     x_0 = last_x;
     
     totalX += x_1-x_0;
-    
-//    Serial.print("Total: "); Serial.print(totalX);
-//    Serial.print(" A: "); Serial.print(a);
-//    Serial.print(" V: "); Serial.println(v_1);
 }
 
 void setup() {
@@ -296,16 +287,6 @@ void println(const char *c) {
 }
 
 void sendAck() {
-//    Serial.print("Total: "); Serial.print(totalX);
-//    Serial.print("Target: "); Serial.print(target_x);
-//    Serial.print(" A: "); Serial.print(last_a);
-//    Serial.print(" V: "); Serial.println(v_1); 
-//    
-//    Serial.print("Target Deg: "); Serial.print(getTargDeg()); 
-//    Serial.print(" Cur Deg: "); Serial.println(getOrient()); 
-////    
-//    Serial.println("!!!!ACK!!!!");
- 
     waitingNewPacket = true;
     RPI_SERIAL.print(ACK_MSG);
     delay(turnLength);
@@ -343,7 +324,6 @@ float getTargDeg() {
 }
 
 float getOrient() { 
-   //return scaleHeading(orientation.heading + headingCorrection);
    return scaleHeading(heading);
 }
 
@@ -363,19 +343,13 @@ void loop() {
   }
   
   if (abs(getOrient() - getTargDeg()) < 5 && isDoingTurn) {
-//     Serial.print("Updating Heading Cor.: "); Serial.println(headingCorrection);
      headingCorrection = -1 * orientation.heading;
      heading = getTargDeg();
-//     Serial.print("Updating Heading Cor.: "); Serial.println(headingCorrection);
      isDoingTurn = false;
      sendAck();
   }
   
   if (RPI_SERIAL.available() >= PACKET_SIZE) {
-//     while (RPI_SERIAL.available()) {
-//        Serial.println(RPI_SERIAL.read()); 
-//     }
-//     Serial.println("");
     if (read_in_packet_2(msg_buf)) {
       lastMovePacket = millis();
 //      Serial.println("packet");
@@ -514,11 +488,7 @@ void turn(float deg) {
      newTurn = false;
      heading = getTargDeg();
      target_deg = scaleHeading(getOrient() + deg); 
-//     Serial.print("New turn: "); Serial.print(deg); Serial.print(" Tar: "); Serial.println(target_deg);
   }
-  
-//  Serial.print("Target Deg: "); Serial.print(getTargDeg()); 
-//  Serial.print(" Cur Deg: "); Serial.println(getOrient()); 
   
   make_packet_vels(vel_buf, turn_vel, -turn_vel);
   send_packet_serial(vel_buf);
@@ -542,7 +512,6 @@ bool checkTurn() {
 }
 
 void checkInfo() {
-   //return false;
 //   if (msg_buf[1] == INFO_MSG) {
 //      processPacket();
 //   } 

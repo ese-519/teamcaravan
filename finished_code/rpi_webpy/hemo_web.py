@@ -8,7 +8,7 @@ import json
 import threading
 from Queue import *
 
-rootPath = '/home/ubuntu/hemo_code/new_code/wksp/src/hemo_webpy/'
+rootPath = 'REPLACE/ME'
 contentPath = rootPath + 'static/app/'
         
 urls = ( 
@@ -29,7 +29,7 @@ global m, destLoc, inTrip, jobQueue, curJob
 inTrip = False
 destLoc = 1
 jobQueue = Queue()
-m = Map("/home/ubuntu/hemo_code/new_code/wksp/src/hemo_webpy/levine.mp")
+m = Map(rootPath + "levine.mp")
 
 class index:
     def GET(self):
@@ -41,11 +41,19 @@ class botPos:
     global curLoc, destLoc, m
 
     def GET(self):
-        global curLoc, destLoc, m
-        # m = Map("/home/ubuntu/hemo_code/new_code/wksp/src/hemo_webpy/levine.mp")
+        global curLoc, destLoc, m, inTrip
         c = m.getLines()
         s = c[curLoc]
-        d = c[destLoc]
+
+        nxtLoc = curLoc + 1
+        if nxtLoc > len(m.hallways):
+            nxtLoc = 1
+
+        if (inTrip):
+            d = c[nxtLoc]
+        else:
+            d = c[curLoc]
+            
         res_dic = {}
 
         if (c != None):
@@ -59,7 +67,7 @@ class botPos:
 class mapData:
     def GET(self):
         global m
-        # m = Map("/home/ubuntu/hemo_code/new_code/wksp/src/hemo_webpy/levine.mp")
+    
         map_line_data = m.getLines()
         dic = {}
 
@@ -113,7 +121,9 @@ def tripCallback():
         print "ACK"
 
         if curJob.type == 'f':
-            curLoc = (curLoc + 1)%len(m.hallways)
+            curLoc = curLoc + 1
+            if curLoc > len(m.hallways):
+                curLoc = 1
 
         if (jobQueue.empty()):
             endTrip()
@@ -132,16 +142,6 @@ def tripCallback():
     if (inTrip):
         threading.Timer(callbackDelay, tripCallback).start()
 
-#   for t in p.turns:
-#       curLoc += 1
-#       if (curLoc > len(m.hallways)):
-#         curLoc = 1
-#       moveForward(t[0])
-#       turnLeft(t[1] - curDeg)
-#       curDeg = t[1]
-#       if (curLoc == p.dest):
-#         brake()
-
 def startTrip(dest):
     global jobQueue, curJob, inTrip, destLoc, curDeg, curLoc
     
@@ -149,7 +149,7 @@ def startTrip(dest):
         jobQueue.get()
 
     curLoc = 1
-    m = Map("/home/ubuntu/hemo_code/new_code/wksp/src/hemo_webpy/levine.mp")
+    m = Map(rootPath + "levine.mp")
     path = m.findPath(dest)
 
     doors = m.doors
@@ -199,13 +199,12 @@ def ROS_INFO(s):
 
 def start():
 
-    # rospy.init_node('hemo_webpy')
-
-    # ROS_INFO("hemo_webpy STARTED")
+    rospy.init_node('hemo_webpy')
+    ROS_INFO("hemo_webpy STARTED")
 
     app.run()
-    # rospy.spin();        
+    # spin() probably not necesary, since app.run() will loop (part of webpy)
+    rospy.spin();
 
 if __name__ == "__main__":
-    # app.run()
     start()
